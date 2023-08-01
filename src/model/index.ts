@@ -40,7 +40,8 @@ class Model {
 
   public async findById(id: string | number) {
     const query = `
-      SELECT * FROM ${this.table} WHERE id=${id};
+      SELECT * FROM ${this.table} 
+      WHERE id=${id};
     `;
 
     const result = await this.connection.query(query);
@@ -106,7 +107,7 @@ class Model {
 
     const query = `
       INSERT INTO ${this.table} (${columns}, id)
-      VALUES (${placeholders}, ?)
+      VALUES (${placeholders}, ?);
     `;
 
     const lastId = await this.find(-1) as any;
@@ -132,7 +133,7 @@ class Model {
         ${this.columns[column].notnull ? `NOT NULL` : ``}
         ${this.columns[column].primarykey ? `PRIMARY KEY` : ``}`
     )}
-    )`;
+    );`;
 
     try {
       const result = await this.connection.query(query);
