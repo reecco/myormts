@@ -1,7 +1,8 @@
-import { Connection } from "mysql2/promise";
+import { Connection as Conn, FieldPacket, ResultSetHeader } from "mysql2";
 import { Types } from "../enum";
 export interface Columns {
     [column: string]: {
+        id?: number;
         type?: Types;
         notnull?: boolean;
         autoincrement?: boolean;
@@ -9,33 +10,32 @@ export interface Columns {
         primarykey?: boolean;
     };
 }
+export interface Rows {
+    fieldCount: number;
+    affectedRows: number;
+    insertId: number;
+    info: string;
+    serverStatus: number;
+    warningStatus: number;
+    changedRows: number;
+}
+export interface Result {
+    rows: Columns[];
+    fields?: FieldPacket[];
+    message?: string;
+}
 declare class Model {
+    private connection;
     private columns;
     private table;
-    private connection;
-    list: Array<{}>;
-    constructor(table: string, connection: Connection, columns: Columns);
-    findById(id: string | number): Promise<[import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]]>;
-    find(index?: number): Promise<{}[] | undefined>;
-    findByIdAndUpdate(id: string | number, values: any): Promise<{
-        results: [import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]];
-        message: string;
-    } | undefined>;
-    findByIdAndDelete(id: string | number): Promise<{
-        results: [import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]];
-        message: string;
-    } | undefined>;
-    insert(values: any): Promise<{
-        result: [import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]];
-        message: string;
-    } | undefined>;
-    generateTable(): Promise<{
-        result: [import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]];
-        message: string;
-    } | undefined>;
-    dropTable(): Promise<{
-        result: [import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/RowDataPacket").RowDataPacket[][] | import("mysql2/typings/mysql/lib/protocol/packets/OkPacket").OkPacket[] | import("mysql2/typings/mysql/lib/protocol/packets/ProcedurePacket").ProcedureCallPacket | import("mysql2/typings/mysql/lib/protocol/packets/ResultSetHeader").ResultSetHeader[], import("mysql2/typings/mysql/lib/protocol/packets/FieldPacket").FieldPacket[]];
-        message: string;
-    } | undefined>;
+    constructor(connection: Conn);
+    define(table: string, columns: Columns): void;
+    generateTable(): Promise<Result>;
+    dropTable(): Promise<Result>;
+    find(value?: string, index?: number): Promise<Result>;
+    findById(id: number): Promise<Result>;
+    insert(values: any): Promise<ResultSetHeader>;
+    findByIdAndUpdate(id: number, values: any): Promise<ResultSetHeader>;
+    findByIdAndDelete(id: number): Promise<ResultSetHeader>;
 }
 export default Model;

@@ -4,4 +4,6 @@ export enum Types {
   FLOAT = 'FLOAT',
   BOOLEAN = 'BOOLEAN',
   DATE = 'DATE',
+  DATETIME = "DATETIME",
+  TIMESTAMP = "TIMESTAMP"
 }

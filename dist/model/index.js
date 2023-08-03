@@ -9,134 +9,117 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const list_1 = require("../utils/list");
-// type ValueTypeFromType<T extends Types> =
-//   T extends Types.STRING
-//   ? string
-//   : T extends Types.INTEGER
-//   ? number
-//   : T extends Types.FLOAT
-//   ? number
-//   : T extends Types.BOOLEAN
-//   ? boolean
-//   : T extends Types.DATE
-//   ? Date
-//   : null;
 class Model {
-    constructor(table, connection, columns) {
-        this.table = table;
-        this.columns = columns;
+    constructor(connection) {
         this.connection = connection;
     }
-    findById(id) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const query = `
-      SELECT * FROM ${this.table} WHERE id=${id};
-    `;
-            const result = yield this.connection.query(query);
-            return result;
-        });
-    }
-    find(index) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const query = `
-      SELECT * FROM ${this.table};
-    `;
-            try {
-                const [rows, fields] = yield this.connection.query(query);
-                this.list = (0, list_1.mapping)(rows);
-                return this.list.slice(index);
-            }
-            catch (error) {
-                console.log(error.message);
-            }
-        });
-    }
-    findByIdAndUpdate(id, values) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const columns = Object.keys(values).map(column => `${column} = ?`).join(', ');
-            const query = `
-      UPDATE ${this.table}
-      SET ${columns}
-      WHERE id = ?;
-    `;
-            const valuesArray = [...Object.values(values), id];
-            try {
-                const results = yield this.connection.query(query, valuesArray);
-                const filtered = (0, list_1.mapping)(results);
-                return { results, message: filtered[0].row.affectedRows ? "Row updated successfully." : "ID not found." };
-            }
-            catch (error) {
-                console.log(error.message);
-            }
-        });
-    }
-    findByIdAndDelete(id) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const query = `
-      DELETE FROM ${this.table}
-      WHERE id = ?;
-    `;
-            try {
-                const results = yield this.connection.query(query, [id]);
-                const filtered = (0, list_1.mapping)(results);
-                return { results, message: filtered[0].row.affectedRows ? "Row deleted successfully." : "ID not found." };
-            }
-            catch (error) {
-                console.log(error.message);
-            }
-        });
-    }
-    insert(values) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const columns = Object.keys(values).join(', ');
-            const placeholders = Object.keys(values).map(() => '?').join(', ');
-            const query = `
-      INSERT INTO ${this.table} (${columns}, id)
-      VALUES (${placeholders}, ?)
-    `;
-            const lastId = yield this.find(-1);
-            try {
-                if (!lastId.length)
-                    throw new Error("Register not found.");
-                const valuesArray = [...Object.values(values), (lastId[0].row.id + 1)];
-                const result = yield this.connection.query(query, valuesArray);
-                return { result, message: "Row inserted successfully." };
-            }
-            catch (error) {
-                console.log(error.message);
-            }
-        });
+    define(table, columns) {
+        this.table = table;
+        this.columns = columns;
     }
     generateTable() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const query = `
+        const query = `
     CREATE TABLE ${this.table} (
       ${Object.keys(this.columns).map(column => `${column} ${this.columns[column].type}${this.columns[column].length ? `(${this.columns[column].length})` : ``}
         ${this.columns[column].notnull ? `NOT NULL` : ``}
         ${this.columns[column].primarykey ? `PRIMARY KEY` : ``}`)}
-    )`;
-            try {
-                const result = yield this.connection.query(query);
-                return { result, message: "Table generated successfully." };
-            }
-            catch (error) {
-                console.log(error.message);
-            }
+    );`;
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, (error, rows, _) => {
+                if (error)
+                    return reject(error);
+                const result = { rows, message: "Table generated successfully." };
+                resolve(result);
+            });
         });
     }
     dropTable() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const query = `
+        const query = `
       DROP TABLE ${this.table};
     `;
-            try {
-                const result = yield this.connection.query(query);
-                return { result, message: "Table deleted successfully." };
-            }
-            catch (error) {
-                console.log(error.message);
-            }
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, (error, rows, _) => {
+                if (error)
+                    return reject(error);
+                const result = { rows, message: "Table deleted successfully." };
+                resolve(result);
+            });
+        });
+    }
+    find(value, index) {
+        const query = `
+      ${index === -1 ?
+            `SELECT * FROM ${this.table} WHERE ${value} = (SELECT MAX(${value}) FROM ${this.table});` :
+            `SELECT * FROM ${this.table};`}
+    `;
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, (error, rows, fields) => {
+                if (error)
+                    return reject(error);
+                resolve({ rows: rows, fields });
+            });
+        });
+    }
+    findById(id) {
+        const query = `
+      SELECT * FROM ${this.table} 
+      WHERE id=${id};
+    `;
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, (error, rows, fields) => {
+                if (error)
+                    reject(error);
+                const result = { rows, fields };
+                resolve(result);
+            });
+        });
+    }
+    insert(values) {
+        const columns = Object.keys(values).join(', ');
+        const placeholders = Object.keys(values).map(() => '?').join(', ');
+        const query = `
+      INSERT INTO ${this.table} (${columns}, id)
+      VALUES (${placeholders}, ?);
+    `;
+        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+            const lastId = yield this.find("id", -1);
+            const id = lastId.rows.length ? lastId.rows[0].id + 1 : 0;
+            const valuesArray = [...Object.values(values), id];
+            this.connection.query(query, valuesArray, (error, rows, _) => {
+                if (error)
+                    return reject(error);
+                resolve(rows);
+            });
+        }));
+    }
+    findByIdAndUpdate(id, values) {
+        const columns = Object.keys(values).map(column => `${column} = ?`).join(', ');
+        const query = `
+      UPDATE ${this.table}
+      SET ${columns}
+      WHERE id = ?;
+    `;
+        const valuesArray = [...Object.values(values), id];
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, valuesArray, (error, rows, _) => {
+                if (error)
+                    return reject(error);
+                resolve(rows);
+            });
+        });
+    }
+    findByIdAndDelete(id) {
+        const query = `
+      DELETE FROM ${this.table} 
+      WHERE id = ?;
+    `;
+        const valuesArray = [id];
+        return new Promise((resolve, reject) => {
+            this.connection.query(query, valuesArray, (error, rows, _) => {
+                if (error)
+                    return reject(error);
+                resolve(rows);
+            });
         });
     }
 }

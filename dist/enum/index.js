@@ -8,4 +8,6 @@ var Types;
     Types["FLOAT"] = "FLOAT";
     Types["BOOLEAN"] = "BOOLEAN";
     Types["DATE"] = "DATE";
+    Types["DATETIME"] = "DATETIME";
+    Types["TIMESTAMP"] = "TIMESTAMP";
 })(Types || (exports.Types = Types = {}));

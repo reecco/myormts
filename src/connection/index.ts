@@ -1,6 +1,8 @@
-import mysql, { Connection as Conn } from "mysql2/promise";
+import mysql, { Connection as Conn } from "mysql2";
 
-type ConnectionParams = {
+import Model from "../model";
+
+export interface ConnectionParams {
   host?: string;
   port?: number;
   password?: string;
@@ -8,33 +10,35 @@ type ConnectionParams = {
   user?: string;
 }
 
-type ResultConnection = {
-  result: Conn;
-  message: string;
+export interface ReturnConnection {
+  Model: Model;
 }
 
 export class Connection {
-  protected connection!: Conn;
+  private params!: ConnectionParams;
+  private connection!: Conn;
 
-  public async create(conn: ConnectionParams, callback: (result: ResultConnection | null, error: unknown | null) => void) {
+  constructor(params: ConnectionParams) {
+    this.params = params;
+  }
+
+  public create(): ReturnConnection {
     try {
-      this.connection = await mysql.createConnection({
-        host: conn.host,
-        port: conn.port,
-        password: conn.password,
-        database: conn.database,
-        user: conn.user
-      }) as Conn;
+      this.connection = mysql.createConnection({
+        host: this.params.host,
+        port: this.params.port,
+        password: this.params.password,
+        database: this.params.database,
+        user: this.params.user
+      });
 
-      return callback({result: this.connection, message: `Connected to the '${conn.database}' database.`}, null);
+      console.log(`Connected to the '${this.connection.config.database}' database.`);
     } catch (error) {
-      return callback(null, error);
+      console.log(error);
+    } finally {
+      return {
+        Model: new Model(this.connection)
+      }
     }
   }
-
-  public getConnection() {
-    return this.connection;
-  }
 }
-
-export default new Connection();

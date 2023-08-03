@@ -1,4 +1,4 @@
-import Model from "./model";
-import connection from "./connection";
+import { Connection, ConnectionParams, ReturnConnection } from "./connection";
+import { Columns, Result, Rows } from "./model";
 import { Types } from "./enum";
-export { Model, connection, Types };
+export { Connection, ConnectionParams, ReturnConnection, Columns, Result, Rows, Types };

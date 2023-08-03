@@ -3,5 +3,7 @@ export declare enum Types {
     INTEGER = "INT",
     FLOAT = "FLOAT",
     BOOLEAN = "BOOLEAN",
-    DATE = "DATE"
+    DATE = "DATE",
+    DATETIME = "DATETIME",
+    TIMESTAMP = "TIMESTAMP"
 }

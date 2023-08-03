@@ -9,7 +9,11 @@
     "dev": "tsnd src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["nodejs", "typescript", "orm"],
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "orm"
+  ],
   "author": "reecco",
   "license": "ISC",
   "devDependencies": {

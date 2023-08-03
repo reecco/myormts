@@ -1,40 +1,34 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Connection = void 0;
-const promise_1 = __importDefault(require("mysql2/promise"));
+const mysql2_1 = __importDefault(require("mysql2"));
+const model_1 = __importDefault(require("../model"));
 class Connection {
-    create(conn, callback) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                this.connection = (yield promise_1.default.createConnection({
-                    host: conn.host,
-                    port: conn.port,
-                    password: conn.password,
-                    database: conn.database,
-                    user: conn.user
-                }));
-                return callback({ result: this.connection, message: `Connected to the '${conn.database}' database.` }, null);
-            }
-            catch (error) {
-                return callback(null, error);
-            }
-        });
+    constructor(params) {
+        this.params = params;
     }
-    getConnection() {
-        return this.connection;
+    create() {
+        try {
+            this.connection = mysql2_1.default.createConnection({
+                host: this.params.host,
+                port: this.params.port,
+                password: this.params.password,
+                database: this.params.database,
+                user: this.params.user
+            });
+            console.log(`Connected to the '${this.connection.config.database}' database.`);
+        }
+        catch (error) {
+            console.log(error);
+        }
+        finally {
+            return {
+                Model: new model_1.default(this.connection)
+            };
+        }
     }
 }
 exports.Connection = Connection;
-exports.default = new Connection();
