@@ -1,67 +1,65 @@
-import { Connection as Conn, FieldPacket, ResultSetHeader } from "mysql2";
+import { Connection } from "mysql2";
 import { Types } from "../enum";
+import { QueryModel } from "../utils";
 
 export interface Columns {
   [column: string]: {
-    id?: number;
     type?: Types;
     notnull?: boolean;
     autoincrement?: boolean;
     length?: number;
     primarykey?: boolean;
-    // value?: ValueTypeFromType<Types>
-    // value?: [value: number | string | Date | boolean]
   };
 }
 
-export interface Rows {
-  fieldCount: number;
-  affectedRows: number;
-  insertId: number;
-  info: string;
-  serverStatus: number;
-  warningStatus: number;
-  changedRows: number;
-}
-
-// export type Rows = OkPacket | RowDataPacket[] | ResultSetHeader[] | RowDataPacket[][] | OkPacket[] | ProcedureCallPacket;
-
 export interface Result {
   rows: Columns[];
-  fields?: FieldPacket[];
+  query: string;
   message?: string;
 }
 
+export type SearchParams = {
+  column?: string;
+  value?: any;
+  index?: number;
+}
+
 class Model {
-  private connection!: Conn;
+  private connection!: Connection;
   private columns!: Record<string, any>;
   private table!: string;
 
-  constructor(connection: Conn) {
+  constructor(connection: Connection) {
     this.connection = connection;
   }
 
   public define(table: string, columns: Columns): void {
-    this.table = table;
+    if (!columns["id"])
+      columns.id = {
+        type: Types.INTEGER,
+        notnull: true,
+        primarykey: true,
+        autoincrement: true,
+      }
+
     this.columns = columns;
+    this.table = table;
+
+    Object.keys(this.columns).map((column) =>
+      this.columns[column].type !== Types.STRING &&
+      this.columns[column].length !== undefined &&
+      delete this.columns[column].length);
   }
 
   public generateTable(): Promise<Result> {
-    const query = `
-    CREATE TABLE ${this.table} (
-      ${Object.keys(this.columns).map(column =>
-      `${column} ${this.columns[column].type}${this.columns[column].length ? `(${this.columns[column].length})` : ``}
-        ${this.columns[column].notnull ? `NOT NULL` : ``}
-        ${this.columns[column].primarykey ? `PRIMARY KEY` : ``}`
-    )}
-    );`;
+    const query = QueryModel.createTable(this.table, this.columns);
 
     return new Promise((resolve, reject) => {
       this.connection.query(query, (error, rows, _) => {
         if (error)
           return reject(error);
 
-        const result = { rows, message: "Table generated successfully." };
+        const result = { rows, query: query, message: "Table generated successfully." };
 
         resolve(result as Result);
       });
@@ -69,68 +67,55 @@ class Model {
   }
 
   public dropTable(): Promise<Result> {
-    const query = `
-      DROP TABLE ${this.table};
-    `;
+    const query = QueryModel.dropTable(this.table);
 
     return new Promise((resolve, reject) => {
       this.connection.query(query, (error, rows, _) => {
         if (error)
           return reject(error);
 
-        const result = { rows, message: "Table deleted successfully." };
+        const result = { rows, query: query.replace("?", this.table), message: "Table deleted successfully." };
 
         resolve(result as Result);
       });
     });
   }
 
-  public find(value?: string, index?: number): Promise<Result> {
-    const query = `
-      ${index === -1 ?
-        `SELECT * FROM ${this.table} WHERE ${value} = (SELECT MAX(${value}) FROM ${this.table});` :
-        `SELECT * FROM ${this.table};`}
-    `;
+  public find(search?: SearchParams): Promise<Result> {
+    const query = QueryModel.select(this.table, { column: search?.column, value: search?.value, index: search?.index });
+    const valuesArray = [search?.value];
 
     return new Promise((resolve, reject) => {
-      this.connection.query(query, (error, rows, fields) => {
+      this.connection.query(query, valuesArray, (error, rows, _) => {
         if (error)
           return reject(error);
 
-        resolve({ rows: rows as Columns[], fields });
+        resolve({ rows: rows as Columns[], query: query.replace("?", search?.value) });
       });
     })
   }
 
   public findById(id: number): Promise<Result> {
-    const query = `
-      SELECT * FROM ${this.table} 
-      WHERE id=${id};
-    `;
+    const query = QueryModel.select(this.table, { column: "id", value: id });
+    const valuesArray = [id];
 
     return new Promise((resolve, reject) => {
-      this.connection.query(query, (error, rows, fields) => {
+      this.connection.query(query, valuesArray, (error, rows, _) => {
         if (error)
           reject(error);
 
-        const result = { rows, fields };
+        const result = { rows, query: query.replace("?", id.toString()) };
 
         resolve(result as Result);
       });
     });
   }
 
-  public insert(values: any): Promise<ResultSetHeader> {
-    const columns = Object.keys(values).join(', ');
-    const placeholders = Object.keys(values).map(() => '?').join(', ');
-
-    const query = `
-      INSERT INTO ${this.table} (${columns}, id)
-      VALUES (${placeholders}, ?);
-    `;
+  public insert(values: any): Promise<Result> {
+    const query = QueryModel.insert(this.table, values);
 
     return new Promise(async (resolve, reject) => {
-      const lastId = await this.find("id", -1) as any;
+      const lastId = await this.find({ column: "id", index: -1 }) as any;
 
       const id: number = lastId.rows.length ? lastId.rows[0].id + 1 : 0;
 
@@ -140,19 +125,15 @@ class Model {
         if (error)
           return reject(error);
 
-        resolve(rows as ResultSetHeader);
+        const result = { rows, query: query };
+
+        resolve(result as Result);
       });
     });
   }
 
-  public findByIdAndUpdate(id: number, values: any): Promise<ResultSetHeader> {
-    const columns = Object.keys(values).map(column => `${column} = ?`).join(', ');
-
-    const query = `
-      UPDATE ${this.table}
-      SET ${columns}
-      WHERE id = ?;
-    `;
+  public findByIdAndUpdate(id: number, values: any): Promise<Result> {
+    const query = QueryModel.update(this.table, { column: "id", value: values });
 
     const valuesArray = [...Object.values(values), id];
 
@@ -161,16 +142,15 @@ class Model {
         if (error)
           return reject(error);
 
-        resolve(rows as ResultSetHeader);
+        const result = { rows, query: query };
+
+        resolve(result as Result);
       });
     });
   }
 
-  public findByIdAndDelete(id: number): Promise<ResultSetHeader> {
-    const query = `
-      DELETE FROM ${this.table} 
-      WHERE id = ?;
-    `;
+  public findByIdAndDelete(id: number): Promise<Result> {
+    const query = QueryModel.delete(this.table, { column: "id" });
 
     const valuesArray = [id];
 
@@ -179,7 +159,9 @@ class Model {
         if (error)
           return reject(error);
 
-        resolve(rows as ResultSetHeader);
+        const result = { rows, query: query.replace("?", id.toString()) };
+
+        resolve(result as Result);
       });
     });
   }

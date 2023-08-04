@@ -9,116 +9,106 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const enum_1 = require("../enum");
+const utils_1 = require("../utils");
 class Model {
     constructor(connection) {
         this.connection = connection;
     }
     define(table, columns) {
-        this.table = table;
+        if (!columns["id"])
+            columns.id = {
+                type: enum_1.Types.INTEGER,
+                notnull: true,
+                primarykey: true,
+                autoincrement: true,
+            };
         this.columns = columns;
+        this.table = table;
+        Object.keys(this.columns).map((column) => this.columns[column].type !== enum_1.Types.STRING &&
+            this.columns[column].length !== undefined &&
+            delete this.columns[column].length);
     }
     generateTable() {
-        const query = `
-    CREATE TABLE ${this.table} (
-      ${Object.keys(this.columns).map(column => `${column} ${this.columns[column].type}${this.columns[column].length ? `(${this.columns[column].length})` : ``}
-        ${this.columns[column].notnull ? `NOT NULL` : ``}
-        ${this.columns[column].primarykey ? `PRIMARY KEY` : ``}`)}
-    );`;
+        const query = utils_1.QueryModel.createTable(this.table, this.columns);
         return new Promise((resolve, reject) => {
             this.connection.query(query, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                const result = { rows, message: "Table generated successfully." };
+                const result = { rows, query: query, message: "Table generated successfully." };
                 resolve(result);
             });
         });
     }
     dropTable() {
-        const query = `
-      DROP TABLE ${this.table};
-    `;
+        const query = utils_1.QueryModel.dropTable(this.table);
         return new Promise((resolve, reject) => {
             this.connection.query(query, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                const result = { rows, message: "Table deleted successfully." };
+                const result = { rows, query: query.replace("?", this.table), message: "Table deleted successfully." };
                 resolve(result);
             });
         });
     }
-    find(value, index) {
-        const query = `
-      ${index === -1 ?
-            `SELECT * FROM ${this.table} WHERE ${value} = (SELECT MAX(${value}) FROM ${this.table});` :
-            `SELECT * FROM ${this.table};`}
-    `;
+    find(search) {
+        const query = utils_1.QueryModel.select(this.table, { column: search === null || search === void 0 ? void 0 : search.column, value: search === null || search === void 0 ? void 0 : search.value, index: search === null || search === void 0 ? void 0 : search.index });
+        const valuesArray = [search === null || search === void 0 ? void 0 : search.value];
         return new Promise((resolve, reject) => {
-            this.connection.query(query, (error, rows, fields) => {
+            this.connection.query(query, valuesArray, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                resolve({ rows: rows, fields });
+                resolve({ rows: rows, query: query.replace("?", search === null || search === void 0 ? void 0 : search.value) });
             });
         });
     }
     findById(id) {
-        const query = `
-      SELECT * FROM ${this.table} 
-      WHERE id=${id};
-    `;
+        const query = utils_1.QueryModel.select(this.table, { column: "id", value: id });
+        const valuesArray = [id];
         return new Promise((resolve, reject) => {
-            this.connection.query(query, (error, rows, fields) => {
+            this.connection.query(query, valuesArray, (error, rows, _) => {
                 if (error)
                     reject(error);
-                const result = { rows, fields };
+                const result = { rows, query: query.replace("?", id.toString()) };
                 resolve(result);
             });
         });
     }
     insert(values) {
-        const columns = Object.keys(values).join(', ');
-        const placeholders = Object.keys(values).map(() => '?').join(', ');
-        const query = `
-      INSERT INTO ${this.table} (${columns}, id)
-      VALUES (${placeholders}, ?);
-    `;
+        const query = utils_1.QueryModel.insert(this.table, values);
         return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
-            const lastId = yield this.find("id", -1);
+            const lastId = yield this.find({ column: "id", index: -1 });
             const id = lastId.rows.length ? lastId.rows[0].id + 1 : 0;
             const valuesArray = [...Object.values(values), id];
             this.connection.query(query, valuesArray, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                resolve(rows);
+                const result = { rows, query: query };
+                resolve(result);
             });
         }));
     }
     findByIdAndUpdate(id, values) {
-        const columns = Object.keys(values).map(column => `${column} = ?`).join(', ');
-        const query = `
-      UPDATE ${this.table}
-      SET ${columns}
-      WHERE id = ?;
-    `;
+        const query = utils_1.QueryModel.update(this.table, { column: "id", value: values });
         const valuesArray = [...Object.values(values), id];
         return new Promise((resolve, reject) => {
             this.connection.query(query, valuesArray, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                resolve(rows);
+                const result = { rows, query: query };
+                resolve(result);
             });
         });
     }
     findByIdAndDelete(id) {
-        const query = `
-      DELETE FROM ${this.table} 
-      WHERE id = ?;
-    `;
+        const query = utils_1.QueryModel.delete(this.table, { column: "id" });
         const valuesArray = [id];
         return new Promise((resolve, reject) => {
             this.connection.query(query, valuesArray, (error, rows, _) => {
                 if (error)
                     return reject(error);
-                resolve(rows);
+                const result = { rows, query: query.replace("?", id.toString()) };
+                resolve(result);
             });
         });
     }
