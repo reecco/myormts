@@ -1,4 +1,5 @@
-import { SearchParams } from "../model";
+import { Types } from "../enum";
+import { SearchParams, Columns, AssociationFk, AssociationPk } from "../model";
 
 export class QueryModel {
   public static select(table: string, { column, value, index }: SearchParams) {
@@ -39,16 +40,40 @@ export class QueryModel {
 
   public static createTable(table: string, columns: Record<string, any>) {
     return `
-    CREATE TABLE ${table} (
+      CREATE TABLE ${table} (
       ${Object.keys(columns).map(column =>
       `${column} ${columns[column].type}${columns[column].length ? `(${columns[column].length})` : ``}
         ${columns[column].notnull ? `NOT NULL` : ``}
         ${columns[column].primarykey ? `PRIMARY KEY` : ``}`
-    )}
-    );`;
+      )}
+      );`;
   }
 
   public static dropTable(table: string) {
     return `DROP TABLE ${table};`;
+  }
+
+  public static verifyTable(table: string) {
+    return `SHOW TABLES LIKE "${table}";`;
+  }
+
+  public static describeTable(table: string) {
+    return `DESCRIBE ${table};`;
+  }
+
+  public static belongsTo(table: string, assoc: AssociationPk) {
+    return `
+      ALTER TABLE ${table}
+      ADD COLUMN ${assoc.column} ${assoc.type},
+      ADD FOREIGN KEY (${assoc.column}) REFERENCES ${assoc.mainTable}(${assoc.mainId});
+    `;
+  }
+
+  public static hasOne(table: string, assoc: AssociationFk) {
+    return `
+      ALTER TABLE ${table}
+      ADD COLUMN ${assoc.column} ${assoc.type},
+      ADD FOREIGN KEY (${assoc.column}) REFERENCES ${assoc.referenceTable}(${assoc.referenceId});
+    `;
   }
 }

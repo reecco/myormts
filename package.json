@@ -1,6 +1,6 @@
 {
   "name": "myormts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Building my own ORM",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

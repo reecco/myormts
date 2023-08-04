@@ -1,8 +1,18 @@
-import { Connection } from "mysql2";
+import { Connection, OkPacket, ProcedureCallPacket, ResultSetHeader, RowDataPacket } from "mysql2";
 import { Types } from "../enum";
 import { QueryModel } from "../utils";
 
-export interface Columns {
+export type Id = {
+  type?: Types;
+  notnull?: boolean;
+  autoincrement?: boolean;
+  length?: number;
+  primarykey?: boolean;
+};
+
+export type Columns = {
+  id?: Id;
+} & {
   [column: string]: {
     type?: Types;
     notnull?: boolean;
@@ -10,11 +20,26 @@ export interface Columns {
     length?: number;
     primarykey?: boolean;
   };
+};
+
+export type AssociationFk = {
+  column?: string; 
+  type?: Types; 
+  referenceTable?: string; 
+  referenceId?: any;
+}
+
+export type AssociationPk = {
+  column?: string; 
+  type?: Types;
+  mainTable?: string;
+  mainId?: any;
 }
 
 export interface Result {
-  rows: Columns[];
-  query: string;
+  rows?: Columns[] | OkPacket | RowDataPacket[] | ResultSetHeader[] | RowDataPacket[][] | OkPacket[] | ProcedureCallPacket;
+  columns?: Columns;
+  query?: string;
   message?: string;
 }
 
@@ -51,18 +76,33 @@ class Model {
       delete this.columns[column].length);
   }
 
+  public getTable(): string {
+    return this.table;
+  }
+
   public generateTable(): Promise<Result> {
     const query = QueryModel.createTable(this.table, this.columns);
 
-    return new Promise((resolve, reject) => {
-      this.connection.query(query, (error, rows, _) => {
-        if (error)
-          return reject(error);
+    return new Promise(async (resolve, reject) => {
+      const resultsArray = await Promise.all([
+        this.verifyTable()
+      ]);
 
-        const result = { rows, query: query, message: "Table generated successfully." };
+      if (!(resultsArray[0].rows as Columns[]).length) {
+        this.connection.query(query, (error, rows, _) => {
+          if (error)
+            return reject(error);
 
-        resolve(result as Result);
-      });
+          const result: Result = { rows, columns: this.columns, query: query, message: "Table generated successfully." };
+
+          resolve(result);
+        });
+        return;
+      }
+
+      const result: Result = { message: `Table '${this.table}' already exists.` };
+
+      resolve(result);
     });
   }
 
@@ -74,9 +114,39 @@ class Model {
         if (error)
           return reject(error);
 
-        const result = { rows, query: query.replace("?", this.table), message: "Table deleted successfully." };
+        const result: Result = { rows, query: query.replace("?", this.table), message: "Table deleted successfully." };
 
-        resolve(result as Result);
+        resolve(result);
+      });
+    });
+  }
+
+  private describeTable(): Promise<Result> {
+    const query = QueryModel.describeTable(this.table);
+
+    return new Promise(async (resolve, reject) => {
+      this.connection.query(query, (error, rows, _) => {
+        if (error)
+          return reject(error);
+
+        const result: Result = { rows, query: query };
+
+        resolve(result);
+      });
+    });
+  }
+
+  private verifyTable(): Promise<Result> {
+    const query = QueryModel.verifyTable(this.table);
+
+    return new Promise((resolve, reject) => {
+      this.connection.query(query, (error, rows, _) => {
+        if (error)
+          return reject(error);
+
+        const result: Result = { rows, query: query };
+
+        resolve(result);
       });
     });
   }
@@ -90,7 +160,9 @@ class Model {
         if (error)
           return reject(error);
 
-        resolve({ rows: rows as Columns[], query: query.replace("?", search?.value) });
+        const result: Result = { rows: rows as Columns[], query: query.replace("?", search?.value) };
+
+        resolve(result);
       });
     })
   }
@@ -104,9 +176,9 @@ class Model {
         if (error)
           reject(error);
 
-        const result = { rows, query: query.replace("?", id.toString()) };
+        const result: Result = { rows, query: query.replace("?", id.toString()) };
 
-        resolve(result as Result);
+        resolve(result);
       });
     });
   }
@@ -125,9 +197,9 @@ class Model {
         if (error)
           return reject(error);
 
-        const result = { rows, query: query };
+        const result: Result = { rows, columns: values, query: query };
 
-        resolve(result as Result);
+        resolve(result);
       });
     });
   }
@@ -142,9 +214,9 @@ class Model {
         if (error)
           return reject(error);
 
-        const result = { rows, query: query };
+        const result: Result = { rows, columns: values, query: query };
 
-        resolve(result as Result);
+        resolve(result);
       });
     });
   }
@@ -159,11 +231,23 @@ class Model {
         if (error)
           return reject(error);
 
-        const result = { rows, query: query.replace("?", id.toString()) };
+        const result: Result = { rows, columns: { id: id as any }, query: query.replace("?", id.toString()) };
 
-        resolve(result as Result);
+        resolve(result);
       });
     });
+  }
+
+  public hasOne(assoc: AssociationFk) {
+    const query = QueryModel.hasOne(this.table, assoc);
+
+    console.log(query);
+  }
+
+  public belongsTo(assoc: AssociationPk) {
+    const query = QueryModel.belongsTo(this.table, assoc);
+
+    console.log(query);
   }
 }
 
