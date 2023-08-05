@@ -1,5 +1,4 @@
-import { Types } from "../enum";
-import { SearchParams, Columns, AssociationFk, AssociationPk } from "../model";
+import { SearchParams, AssociationFk, AssociationPk } from "../model";
 
 export class QueryModel {
   public static select(table: string, { column, value, index }: SearchParams) {

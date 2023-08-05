@@ -20,9 +20,7 @@ export class Connection {
     this.params = params;
   }
 
-  public create(modelNames: string[]): ReturnConnection {
-    const models: Record<string, Model> = {};
-
+  public create() {
     try {
       this.connection = mysql.createConnection({
         host: this.params.host,
@@ -33,13 +31,12 @@ export class Connection {
       });
 
       console.log(`Connected to the '${this.connection.config.database}' database.`);
-
-      for (const modelName of modelNames)
-        models[modelName] = new Model(this.connection);
     } catch (error) {
       console.log(error);
-    } finally {
-      return models;
-    }
+    } 
+  }
+
+  public model(): Model {
+    return new Model(this.connection);
   }
 }
