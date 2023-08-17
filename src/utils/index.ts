@@ -1,4 +1,4 @@
-import { SearchParams, AssociationFk, AssociationPk } from "../model";
+import { SearchParams, AssociationFk, AssociationPk } from "../@types";
 
 export class QueryModel {
   public static select(table: string, { column, value, index }: SearchParams) {

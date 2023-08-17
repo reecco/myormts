@@ -10,8 +10,6 @@ export interface ConnectionParams {
   user?: string;
 }
 
-export type ReturnConnection = Record<string, Model>;
-
 export class Connection {
   private params!: ConnectionParams;
   private connection!: Conn;
@@ -20,7 +18,7 @@ export class Connection {
     this.params = params;
   }
 
-  public create() {
+  public create(): void {
     try {
       this.connection = mysql.createConnection({
         host: this.params.host,
